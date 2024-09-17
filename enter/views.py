@@ -15,6 +15,7 @@ from django.db.models import F
 
 
 def library(request):
+    
     # Get the current date and yesterday's date
     today = date.today()
     yesterday = datetime.now().date() - timedelta(days=2)
@@ -46,7 +47,7 @@ def library(request):
     morning = record.objects.filter(entrytime__gte='00:00:00', entrytime__lte='08:00:00', date=today).count()
     general = record.objects.filter(entrytime__gte='08:00:00', entrytime__lte='16:30:00', date=today).count()
     night = record.objects.filter(entrytime__gte='16:30:00', entrytime__lte='23:59:59', date=today).count()
-
+    
     if request.method == 'POST':
         student_idx = request.POST.get('student_id')
         student_id = student_idx.upper()
@@ -71,7 +72,7 @@ def library(request):
         try:
                 # Check if student_id is in the correct format (e.g., B200719CS)
             
-            if student_id==None or not( isnine(student_id) or isfour(student_id) ):
+            if student_id==None or not(isnine(student_id) or isfour(student_id) ):
             #if student_id==None or not( len(student_id)==9 or len(student_id)==4 ) or not student_id[0].isalpha() or not student_id[1:7].isdigit() or not student_id[7:9].isalpha():
                     message = "Error: Invalid roll number format. Please try again."
             else:
@@ -81,15 +82,23 @@ def library(request):
                     student.exittime = current_time
                     student.status = 'OUT'
                     student.save()
-                    exit_hrs,exit_mins,exit_sec = student.exittime.split(':')
-                    entry_hrs,entry_mins,entry_sec = student.entrytime.strftime("%H:%M:%S").split(':')
-                    entry_hrs = int(entry_hrs)
-                    entry_mins = int(entry_mins)
-                    exit_hrs = int(exit_hrs)
-                    exit_mins = int(exit_mins)
-                    hours = exit_hrs - entry_hrs
-                    mins = exit_mins - entry_mins
-                    message = f"Thank you for visiting NITC Library, you have spent {hours} Hrs {mins} Mins here today"
+                
+                    exit_hrs, exit_mins, exit_sec = map(int, student.exittime.split(':'))
+                    entry_hrs, entry_mins, entry_sec = map(int, student.entrytime.strftime("%H:%M:%S").split(':'))
+                
+                    # Calculate the time difference in seconds
+                    time_difference_seconds = (3600 * (exit_hrs - entry_hrs) +
+                                               60 * (exit_mins - entry_mins) +
+                                               (exit_sec - entry_sec))
+                
+                    hours = time_difference_seconds // 3600
+                    minutes = (time_difference_seconds % 3600) // 60
+                    seconds = time_difference_seconds % 60
+                
+                    if minutes > 0 or seconds > 0:
+                        message = f"Thank you for visiting NITC Library, you have spent {hours} Hrs {minutes} Mins {seconds} Secs here today"
+                    else:
+                        message = f"Thank you for visiting NITC Library, you have spent {hours} Hrs {minutes} Mins here today"
                 else:
                         # Create a new record for a student entering
                     x=True
@@ -112,7 +121,7 @@ def library(request):
             except:
                 if(len(student_id)==9):
                     message = f"Student with roll number {student_id} has entered the library at {current_time}"
-                else:
+                else:   
                     message = f"Staff with ID {student_id} has entered the library at {current_time}"
             # Count the number of students with 'IN' status for today
     count = record.objects.filter(status='IN', date=today).count()
